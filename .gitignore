@@ -1,0 +1,27 @@
+.DS_Store
+node_modules
+/dist
+
+# local env files
+.env.local
+.env.*.local
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw*
+src/plugins/pdfMake/PdfCerDead.vue
+src/plugins/pdfMake/PdfCerBirth.vue
+src/plugins/pdfMake/PdfBirth.vue
+src/plugins/pdfMake/PdfChaDelPop.vue
+src/plugins/pdfMake/PdfDead.vue
+src/plugins/pdfMake/PdfRequest31.vue
+src/plugins/pdfMake/PdfRequest15.vue

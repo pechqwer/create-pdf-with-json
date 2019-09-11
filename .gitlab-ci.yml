@@ -1,0 +1,130 @@
+# This file is a template, and might need editing before it works on your project.
+# Official framework image. Look for the different tagged releases at:
+# https://hub.docker.com/r/library/node/tags/
+image: node:latest
+
+variables:
+  NEXUS_REPOSITORY: "https://gitserv.cdg.co.th:8443/repository/delivery/"
+  DEPLOY_PATH_DEV: "web/dev/$CI_PROJECT_PATH/$CI_BUILD_REF"
+  DEPLOY_PATH_PROD: "web/prod/$CI_PROJECT_PATH/$CI_BUILD_TAG"
+
+stages:
+  - build
+  - test
+  - release
+  - deploy
+  - cleanup
+
+before_script:
+  - if [ ! -z "$CI_BUILD_TAG" ]; then
+      echo "CI_CSV_NO = [$CI_CSV_NO]";
+      if [ -z "$CI_CSV_NO" ]; then exit 1; fi;
+      curl -vf "http://157.179.3.175/csv/php/csv12/checkStatusCSV.php?app=$CI_PROJECT_NAME&csv=$CI_CSV_NO";
+    fi
+
+build:
+  stage: build
+  script:
+    - npm install --verbose
+    - if [ -z "$CI_BUILD_TAG" ]; then
+        npm version --no-git-tag-version "0.$CI_PIPELINE_ID.0-dev";
+      else
+        npm version --no-git-tag-version "$CI_BUILD_TAG";
+      fi
+    - npm run build
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: push
+    paths:
+      - dist/
+      - node_modules/
+  tags:
+    - npm
+
+test:
+  stage: test
+  script:
+    - npm run lint
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    paths:
+      - dist/
+      - node_modules/
+  tags:
+    - npm
+
+delivery-dev:
+  stage: release
+  script:
+    - rm -rf node_modules/
+    - ls -l dist
+    - cd dist && tar cvzf "$CI_PROJECT_NAME-$CI_PIPELINE_ID.tgz" $(ls)
+    - ls -l *.tgz && curl -f -u "$NEXUS_USER:$NEXUS_PASSWORD" -T "$(ls *.tgz)" "$NEXUS_REPOSITORY$DEPLOY_PATH_DEV/"
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    paths:
+      - dist/
+      - node_modules/
+  tags:
+    - npm
+  except:
+    - tags
+  when: manual
+
+delivery-prod:
+  stage: release
+  script:
+    - ls -l dist
+    - cd dist && tar cvzf "$CI_PROJECT_NAME-$CI_BUILD_TAG.tgz" $(ls)
+    - ls -l *.tgz && curl -f -u "$NEXUS_USER:$NEXUS_PASSWORD" -T "$(ls *.tgz)" "$NEXUS_REPOSITORY$DEPLOY_PATH_PROD/"
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    paths:
+      - dist/
+      - node_modules/
+  tags:
+    - npm
+  only:
+    - tags
+
+deployment-dev:
+  stage: deploy
+  variables:
+    CI_PRODUCTION: "false"
+  script:
+    - if [ -z "$CI_BUILD_TAG" ]; then
+        cd /usr/local/script && ./deploy.sh "$DEPLOY_PATH_DEV";
+      else
+        cd /usr/local/script && ./deploy.sh "$DEPLOY_PATH_PROD";
+      fi
+  tags:
+    - xfer
+  when: manual
+
+deployment-prod:
+  stage: deploy
+  variables:
+    CI_PRODUCTION: "true"
+  script:
+    - cd /usr/local/script && ./deploy.sh "$DEPLOY_PATH_PROD"
+  tags:
+    - xfer
+  only:
+    - tags
+
+cleanup:
+  stage: cleanup
+  script:
+    - echo "Cache cleanup!"
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: push
+    paths:
+      - dist/
+      - node_modules/
+  tags:
+    - npm
+  when: always
