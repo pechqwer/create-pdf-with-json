@@ -9,8 +9,8 @@ module.exports = {
   devServer: {
     proxy: {
       '/api': {
-        target: 'https://iservices-ng.bora.dopa.go.th',
-        // target: 'http://172.16.224.218:7003',
+        // target: 'https://iservices-ng.bora.dopa.go.th',
+        target: 'http://localhost:3000',
         secure: false,
         changeOrigin: true,
         headers: {
